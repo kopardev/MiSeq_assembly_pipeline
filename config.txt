@@ -1,0 +1,5 @@
+# paths to executables
+fastq_num_reads+=/home/vnkoparde/bin/fastq_num_reads+
+fastq_trim_by_qual_pe=/home/vnkoparde/c_testing/fastq_trim_by_qual_pe
+sga=/home/vnkoparde/opt/sga/bin/sga
+fastq_deinterleave=/home/vnkoparde/bin/fastq_deinterleave
