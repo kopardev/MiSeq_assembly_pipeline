@@ -1,5 +1,11 @@
 # paths to executables
 fastq_num_reads+=/home/vnkoparde/bin/fastq_num_reads+
-fastq_trim_by_qual_pe=/home/vnkoparde/c_testing/fastq_trim_by_qual_pe
+fastq_trim_by_qual_pe=/home/vnkoparde/bin/fastq_trim_by_qual_pe
 sga=/home/vnkoparde/opt/sga/bin/sga
 fastq_deinterleave=/home/vnkoparde/bin/fastq_deinterleave
+clc_assembler=/usr/global/blp/clc-assembly-cell-4.1.0-linux_64/clc_assembler
+clc_mapper=/usr/global/blp/clc-assembly-cell-4.1.0-linux_64/clc_mapper
+fastq_getQCStatsPE=/home/vnkoparde/bin/fastq_getQCStatsPE
+fqtrim=/usr/global/blp/bin/fqtrim
+cas2sortedbam2=/home/vnkoparde/bin/cas2sortedbam2
+bamGetBasicStats=/home/vnkoparde/bin/bamGetBasicStats
