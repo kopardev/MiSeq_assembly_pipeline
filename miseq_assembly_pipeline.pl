@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #Vishal Koparde
-#v1
+#v1.1
 
 use strict;
 use warnings;
@@ -347,7 +347,7 @@ unless (defined $nocov) {
     $nreadsAssembled=int($bamStats{MappedReads});
     $percentReadsAssembled=sprintf "%.2f",100*$bamStats{MappedReads}/($step4StatsR1{Number_of_reads}+$step4StatsR2{Number_of_reads});
     $nbasesAssembled=int($bamStats{BasesInMappedReads});
-    $percentBasesAssembled=sprintf "%.2f",100*$bamStats{BasesInMappedReads}/($step4StatsR1{Number_of_bases}+$step4StatsR2{Number_of_reads});
+    $percentBasesAssembled=sprintf "%.2f",100*$bamStats{BasesInMappedReads}/($step4StatsR1{Number_of_bases}+$step4StatsR2{Number_of_bases});
 }
 
 
@@ -357,7 +357,7 @@ print R "Number_of_Reads_Assembled\t$nreadsAssembled\t$percentReadsAssembled\%\n
 print R "Number_of_Bases_Assembled\t$nbasesAssembled\t$percentBasesAssembled\%\n";
 
 #Print the stats line
-print R "$sampleName,";
+print R "#$sampleName,";
 my $totalInitialReads=($initialStatsR1{Number_of_reads}+$initialStatsR2{Number_of_reads});
 print R "$totalInitialReads,";
 my $totalStep1Reads=($step1StatsR1{Number_of_reads}+$step1StatsR2{Number_of_reads});
