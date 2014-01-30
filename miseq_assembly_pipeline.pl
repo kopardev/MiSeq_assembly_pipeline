@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #Vishal Koparde
-#v1.1
+#v1.3
 
 use strict;
 use warnings;
@@ -22,7 +22,7 @@ if (@ARGV==0) {
 
 
 my ($read1,$read2,$sampleName,$configFileName,$ncpus,$bt2IndexListFile,@bt2IndexList,$unaligned,$minReadLength,$nodust,$keepFiles,$help);
-my ($windowsize,$window_quality_threshold,$avg_read_quality_threshold,$noqt,$assemblyFile,$nonodup,$nopat,$nocov);
+my ($windowsize,$window_quality_threshold,$avg_read_quality_threshold,$noqt,$assemblyFile,$nonodup,$nopat,$nocov,$noassembly);
 
 
 my $result = GetOptions ( "c=s" => \$configFileName,
@@ -36,6 +36,7 @@ my $result = GetOptions ( "c=s" => \$configFileName,
 			  "nodust" => \$nodust,
 			  "nopat" => \$nopat,
 			  "nocov" => \$nocov,
+			  "noassembly" => \$noassembly,
 		          "k" => \$keepFiles,
 			  "w=i" => \$windowsize,
 			  "wqt=i" => \$window_quality_threshold,
@@ -212,7 +213,7 @@ if (defined $nopat) {
     push @tmp2,("pat","fastq","gz");
     $patread1=join(".",@tmp1);
     $patread2=join(".",@tmp2);
-    $cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o pat.fastq.gz $lcread1,$lcread2";
+    $cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o ${sampleName}.pat.fastq.gz $lcread1,$lcread2";
     print $cmd."\n";
     system($cmd);
     push @todelete,$patread1;
@@ -287,39 +288,45 @@ print R "AssemblyRead2=$patread2\n";
 @todelete = grep { $_ ne $patread2 } @todelete;
 
 # do the assembly
+my %assemblyStats;
 
-$cmd="$cfgHash{clc_assembler} -o $assemblyFile -p fb ss 100 400 -q -i $patread1 $patread2 -b 100 --cpus $ncpus -v";
-system($cmd);
+unless (defined $noassembly) {
 
-my $path=Vutil::getFileAbsolutePath(__FILE__);
-Vutil::fileCheck("${path}/calculateAssemblyStats.pl","This script is required to calculate assembly stats!");
-$cmd="perl ${path}/calculateAssemblyStats.pl $assemblyFile > ${sampleName}.assemblystats";
-push @todelete,"${sampleName}.assemblystats";
-print "$cmd\n";
-system($cmd);
-Vutil::fileCheck("${sampleName}.assemblystats","No assembly stats calculated!");
-my $assemblyStatsTmp=Config::General->new("${sampleName}.assemblystats");
-my %assemblyStats=$assemblyStatsTmp->getall;
+    $cmd="$cfgHash{clc_assembler} -o $assemblyFile -p fb ss 100 400 -q -i $patread1 $patread2 -b 100 --cpus $ncpus -v";
+    system($cmd);
+    
+    my $path=Vutil::getFileAbsolutePath(__FILE__);
+    Vutil::fileCheck("${path}/calculateAssemblyStats.pl","This script is required to calculate assembly stats!");
+    $cmd="perl ${path}/calculateAssemblyStats.pl $assemblyFile > ${sampleName}.assemblystats";
+    push @todelete,"${sampleName}.assemblystats";
+    print "$cmd\n";
+    system($cmd);
+    Vutil::fileCheck("${sampleName}.assemblystats","No assembly stats calculated!");
+    my $assemblyStatsTmp=Config::General->new("${sampleName}.assemblystats");
+    %assemblyStats=$assemblyStatsTmp->getall;
+    
+    print R "\n#Assembly Statistics\n";
+    print R "Number_of_contigs\t".$assemblyStats{"Number_of_contigs"}."\n";
+    print R "Largest_contig_size\t".$assemblyStats{"Largest_contig_size"}."\n";
+    print R "Smallest_contig_size\t".$assemblyStats{"Smallest_contig_size"}."\n";
+    print R "Average_contig_size\t".$assemblyStats{"Average_contig_size"}."\n";
+    print R "N50Size\t".$assemblyStats{"N50Size"}."\n";
+    print R "N50Number\t".$assemblyStats{"N50Number"}."\n";
+    print R "N50Avg_contig_size\t".$assemblyStats{"N50Avg_contig_size"}."\n";
+    print R "N90Size\t".$assemblyStats{"N90Size"}."\n";
+    print R "N90Number\t".$assemblyStats{"N90Number"}."\n";
+    print R "N90Avg_contig_size\t".$assemblyStats{"N90Avg_contig_size"}."\n";
+    print R "GenomeSize\t".$assemblyStats{"GenomeSize"}."\n";
+    print R "GC\t".$assemblyStats{"GC"}."\n";
+    print R "Number_of_Ns\t".$assemblyStats{"Number_of_Ns"}."\n";
+    print R "Percent_Ns\t".$assemblyStats{"Percent_Ns"}."\n";
+    print R "Number_of_contigs>10k\t".$assemblyStats{"Number_of_contigs>10k"}."\n";
+    print R "Percent_of_contigs>10k\t".$assemblyStats{"Percent_of_contigs>10k"}."\n";
+    print R "Total_size_of_contigs>10k\t".$assemblyStats{"Total_size_of_contigs>10k"}."\n";
+    print R "Percent_of_genome_in_contigs>10k\t".$assemblyStats{"Percent_of_genome_in_contigs>10k"}."\n";
 
-print R "\n#Assembly Statistics\n";
-print R "Number_of_contigs\t".$assemblyStats{"Number_of_contigs"}."\n";
-print R "Largest_contig_size\t".$assemblyStats{"Largest_contig_size"}."\n";
-print R "Smallest_contig_size\t".$assemblyStats{"Smallest_contig_size"}."\n";
-print R "Average_contig_size\t".$assemblyStats{"Average_contig_size"}."\n";
-print R "N50Size\t".$assemblyStats{"N50Size"}."\n";
-print R "N50Number\t".$assemblyStats{"N50Number"}."\n";
-print R "N50Avg_contig_size\t".$assemblyStats{"N50Avg_contig_size"}."\n";
-print R "N90Size\t".$assemblyStats{"N90Size"}."\n";
-print R "N90Number\t".$assemblyStats{"N90Number"}."\n";
-print R "N90Avg_contig_size\t".$assemblyStats{"N90Avg_contig_size"}."\n";
-print R "GenomeSize\t".$assemblyStats{"GenomeSize"}."\n";
-print R "GC\t".$assemblyStats{"GC"}."\n";
-print R "Number_of_Ns\t".$assemblyStats{"Number_of_Ns"}."\n";
-print R "Percent_Ns\t".$assemblyStats{"Percent_Ns"}."\n";
-print R "Number_of_contigs>10k\t".$assemblyStats{"Number_of_contigs>10k"}."\n";
-print R "Percent_of_contigs>10k\t".$assemblyStats{"Percent_of_contigs>10k"}."\n";
-print R "Total_size_of_contigs>10k\t".$assemblyStats{"Total_size_of_contigs>10k"}."\n";
-print R "Percent_of_genome_in_contigs>10k\t".$assemblyStats{"Percent_of_genome_in_contigs>10k"}."\n";
+}
+
 
 my ($coverage,$nreadsAssembled,$nbasesAssembled,$percentReadsAssembled,$percentBasesAssembled);
 $coverage=-1;
@@ -329,6 +336,7 @@ $percentReadsAssembled=-1;
 $percentBasesAssembled=-1;
 
 unless (defined $nocov) {
+    Vutil::fileCheck("$assemblyFile","Assembly file is required to calculate coverage!");
     $cmd="$cfgHash{clc_mapper} -o ${sampleName}.cas -q -p fb ss 100 400 -i $patread1 $patread2 -d $assemblyFile --cpus $ncpus";
     push @todelete,"${sampleName}.cas";
     print "$cmd\n";
@@ -379,6 +387,7 @@ print R "$percentStep4Reads,";
 print R "$nreadsAssembled,";
 my $percentReadsAssembled_wrt_initialReads=getperc($nreadsAssembled,$totalInitialReads);
 print R "$percentReadsAssembled_wrt_initialReads,";
+unless (defined $noassembly) {
 print R $assemblyStats{"Number_of_contigs"}.",";
 print R $assemblyStats{"Largest_contig_size"}.",";
 print R $assemblyStats{"Smallest_contig_size"}.",";
@@ -398,7 +407,7 @@ print R $assemblyStats{"Percent_of_contigs>10k"}.",";
 print R $assemblyStats{"Total_size_of_contigs>10k"}.",";
 print R $assemblyStats{"Percent_of_genome_in_contigs>10k"}.",";
 print R "$coverage\n";
-
+}
 
 close R;
 
@@ -441,6 +450,7 @@ options:
 -nodust do not perform dusting (low complexity filtering)
 -noqt do not perform quality trimming
 -nocov do not calculate assembly coverage information
+-noassembly do not perform assembly
 -k keep intermediate files
 -m minimum read length to consider (default=50)
 -w sliding window width for quality trimming (default=9)
