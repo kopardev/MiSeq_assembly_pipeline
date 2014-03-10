@@ -1,0 +1,3 @@
+# MiSeq Assembly Pipeline
+--------------------------
+
