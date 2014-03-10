@@ -22,8 +22,9 @@ if (@ARGV==0) {
 
 
 my ($read1,$read2,$sampleName,$configFileName,$ncpus,$bt2IndexListFile,@bt2IndexList,$unaligned,$minReadLength,$nodust,$keepFiles,$help);
-my ($windowsize,$window_quality_threshold,$avg_read_quality_threshold,$noqt,$assemblyFile,$nonodup,$nopat,$nocov,$noassembly);
-
+my ($windowsize,$window_quality_threshold,$avg_read_quality_threshold,$noqt,$assemblyFile,$nonodup,$nopat,$nocov,$noassembly,$force);
+my @tmp1;
+my @tmp2;
 
 my $result = GetOptions ( "c=s" => \$configFileName,
 			  "1=s" => \$read1,
@@ -41,11 +42,18 @@ my $result = GetOptions ( "c=s" => \$configFileName,
 			  "w=i" => \$windowsize,
 			  "wqt=i" => \$window_quality_threshold,
 			  "arqt=i" => \$avg_read_quality_threshold,
+			  "force" => \$force,
 			  "h|help" => \$help);
 
 
-$configFileName="/home/vnkoparde/pipelines_dev/MiSeq_assembly_pipeline/config.txt" unless (defined $configFileName);
 usage() if ($help);
+
+if (not defined $configFileName) {
+    my $path=Vutil::getFileAbsolutePath(__FILE__);
+    Vutil::fileCheck("${path}/config.txt","Default config file required if one is not provided!");
+    $configFileName="${path}/config.txt";
+}
+
 Vutil::fileCheck($configFileName,"Check the config file!");
 if (not defined $read1 or not defined $read2 or not defined $sampleName) {
     print "Read1 or Read2 OR sampleName not defined\n";
@@ -79,6 +87,8 @@ $dummy=(defined $nodust)?"FALSE":"TRUE";
 print R "LowComplexityFiltering=$dummy\n";
 $dummy=(defined $nopat)?"FALSE":"TRUE";
 print R "PolyA/T_and_NFiltering=$dummy\n";
+$dummy=(defined $force)?"TRUE":"FALSE";
+print R "OverwriteFiles=$dummy\n";
 
 my %initialStatsR1=getReadStats($read1);
 my %initialStatsR2=getReadStats($read2);
@@ -103,8 +113,8 @@ if (defined $nonodup) {
     $nodupRead1=$read1;
     $nodupRead2=$read2;
 } else {
-    my @tmp1=split/\./,$read1;
-    my @tmp2=split/\./,$read2;
+    @tmp1=split/\./,$read1;
+    @tmp2=split/\./,$read2;
     pop @tmp1 if $tmp1[-1] eq "gz";
     pop @tmp2 if $tmp2[-1] eq "gz";
     pop @tmp1 if $tmp1[-1] eq "fastq";
@@ -113,10 +123,12 @@ if (defined $nonodup) {
     push @tmp2,("nodup","fastq","gz");
     $nodupRead1=join(".",@tmp1);
     $nodupRead2=join(".",@tmp2);
-    $ENV{QC_PRINTNODUP}=1;
-    $cmd="$cfgHash{fastq_getQCStatsPE} $read1 $read2";
-    print $cmd."\n";
-    system($cmd);
+    if ( (! -f $nodupRead1) or (! -f $nodupRead2) or (defined $force) ) {
+	$ENV{QC_PRINTNODUP}=1;
+	$cmd="$cfgHash{fastq_getQCStatsPE} $read1 $read2";
+	print $cmd."\n";
+	system($cmd);
+    }
     push @todelete,$nodupRead1;
     push @todelete,$nodupRead2;
 }
@@ -143,9 +155,11 @@ if (defined $noqt) {
 } else {
     $qtread1=$sampleName."_qt_R1.fastq.gz";
     $qtread2=$sampleName."_qt_R2.fastq.gz";
-    $cmd="$cfgHash{fastq_trim_by_qual_pe} $nodupRead1 $nodupRead2 $qtread1 $qtread2 $windowsize $window_quality_threshold $minReadLength $avg_read_quality_threshold";
-    print $cmd."\n";
-    system($cmd);
+    if ( (! -f $qtread1) or (! -f $qtread2) or (defined $force) ) {
+	$cmd="$cfgHash{fastq_trim_by_qual_pe} $nodupRead1 $nodupRead2 $qtread1 $qtread2 $windowsize $window_quality_threshold $minReadLength $avg_read_quality_threshold";
+	print $cmd."\n";
+	system($cmd);
+    }
     push @todelete,$qtread1;
     push @todelete,$qtread2;
 }
@@ -171,16 +185,18 @@ if (defined $nodust) {
 } else {
     $lcread1=$sampleName."_lc_R1.fastq.gz";
     $lcread2=$sampleName."_lc_R2.fastq.gz";
-    my $lcout=$sampleName.".lc.fastq";
-    $cmd="$cfgHash{sga} preprocess -m $minReadLength --dust -p 1 $qtread1 $qtread2 > $lcout";
-    print $cmd."\n";
-    system($cmd);
-    $cmd="$cfgHash{fastq_deinterleave} $lcout ${sampleName}_lc";
-    print $cmd."\n";
-    system($cmd);
+    if ( (! -f $lcread1) or (! -f $lcread2) or (defined $force) ) {
+	my $lcout=$sampleName.".lc.fastq";
+	$cmd="$cfgHash{sga} preprocess -m $minReadLength --dust -p 1 $qtread1 $qtread2 > $lcout";
+	print $cmd."\n";
+	system($cmd);
+	$cmd="$cfgHash{fastq_deinterleave} $lcout ${sampleName}_lc";
+	print $cmd."\n";
+	system($cmd);
+	push @todelete,$lcout;
+    }
     push @todelete,$lcread1;
     push @todelete,$lcread2;
-    push @todelete,$lcout;
 }
 
 my %step3StatsR1=getReadStats($lcread1);
@@ -203,8 +219,8 @@ if (defined $nopat) {
     $patread1=$lcread1;
     $patread2=$lcread2;
 } else {
-    my @tmp1=split/\./,$lcread1;
-    my @tmp2=split/\./,$lcread2;
+    @tmp1=split/\./,$lcread1;
+    @tmp2=split/\./,$lcread2;
     pop @tmp1 if $tmp1[-1] eq "gz";
     pop @tmp2 if $tmp2[-1] eq "gz";
     pop @tmp1 if $tmp1[-1] eq "fastq";
@@ -213,9 +229,11 @@ if (defined $nopat) {
     push @tmp2,("pat","fastq","gz");
     $patread1=join(".",@tmp1);
     $patread2=join(".",@tmp2);
-    $cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o ${sampleName}.pat.fastq.gz $lcread1,$lcread2";
-    print $cmd."\n";
-    system($cmd);
+    if ( (! -f $patread1) or (! -f $patread2) or (defined $force) ) {
+	$cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o pat.fastq.gz $lcread1,$lcread2";
+	print $cmd."\n";
+	system($cmd);
+    }
     push @todelete,$patread1;
     push @todelete,$patread2;
 }
@@ -456,6 +474,7 @@ options:
 -w sliding window width for quality trimming (default=9)
 -wqt sliding window quality threshold (default=25)
 -arqt average read quality threshold (default=30)
+-force overwrite existing files
 
 EOF
 exit 1;
@@ -464,7 +483,10 @@ exit 1;
 sub getReadStats {
     my ($fq)=@_;
     my $fq_stats="${fq}.numreads+";
-    my $nreads=`$cfgHash{"fastq_num_reads+"} $fq > $fq_stats`;
+    if ((! -f $fq_stats) or (defined $force)) {
+	my $cmd="$cfgHash{\"fastq_num_reads+\"} $fq > $fq_stats";
+	system($cmd);
+    }
     my $tmp=Config::General->new($fq_stats);
     push @todelete,$fq_stats;
     return $tmp->getall;    
