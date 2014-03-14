@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #Vishal Koparde
-#v1.3
+#v1.3.1
 
 use strict;
 use warnings;
@@ -77,7 +77,7 @@ open(R,">${sampleName}.report.txt");
 print R "#MiSeq Assembly Pipeline Report\n\n";
 print R "Time=".localtime()."\n";
 print R "Read1=$read1\n";
-print R "Read2=$read1\n";
+print R "Read2=$read2\n";
 my $dummy;
 $dummy=(defined $nonodup)?"FALSE":"TRUE";
 print R "RemoveDuplicates=$dummy\n";
@@ -187,7 +187,7 @@ if (defined $nodust) {
     $lcread2=$sampleName."_lc_R2.fastq.gz";
     if ( (! -f $lcread1) or (! -f $lcread2) or (defined $force) ) {
 	my $lcout=$sampleName.".lc.fastq";
-	$cmd="$cfgHash{sga} preprocess -m $minReadLength --dust -p 1 $qtread1 $qtread2 > $lcout";
+	$cmd="$cfgHash{sga} preprocess -m $minReadLength --dust --dust-threshold=7.0 -p 1 $qtread1 $qtread2 > $lcout";
 	print $cmd."\n";
 	system($cmd);
 	$cmd="$cfgHash{fastq_deinterleave} $lcout ${sampleName}_lc";
@@ -230,7 +230,7 @@ if (defined $nopat) {
     $patread1=join(".",@tmp1);
     $patread2=join(".",@tmp2);
     if ( (! -f $patread1) or (! -f $patread2) or (defined $force) ) {
-	$cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o pat.fastq.gz $lcread1,$lcread2";
+	$cmd="$cfgHash{fqtrim} -p $ncpus -B -P33 -l $minReadLength -o pat.fastq.gz $lcread1,$lcread2 -V > ${sampleName}.fqtrim.log";
 	print $cmd."\n";
 	system($cmd);
     }
